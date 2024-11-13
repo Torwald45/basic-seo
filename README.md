@@ -8,7 +8,7 @@ Simple SEO plugin for WordPress and WooCommerce.
 - Open Graph support (title, description, image)
 - XML Sitemap with HTML display (pages, posts, products, categories)
 - Quick Edit support in admin panel
-- Breadcrumbs support via [seo-breadcrumbs] shortcode
+- Breadcrumbs support via [basicseo-breadcrumb] shortcode
 - Media attachments redirect (prevents duplicate content)
 
 ## Installation
@@ -20,7 +20,7 @@ Simple SEO plugin for WordPress and WooCommerce.
 - Edit any page/post to add Title Tag and Meta Description
 - Use Quick Edit in pages/posts list to quickly edit SEO fields
 - Access sitemap at: yoursite.com/sitemap.xml
-- Use [seo-breadcrumbs] shortcode to display breadcrumbs
+- Use [basicseo-breadcrumb] shortcode to display breadcrumbs
 
 ## Requirements
 - WordPress 5.0 or higher
