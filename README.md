@@ -5,6 +5,7 @@ Simple SEO plugin for WordPress and WooCommerce.
 ## Features
 - Custom Title Tag for pages, posts and WooCommerce (shop page & categories)
 - Meta Description for pages, posts and WooCommerce (shop page & categories)
+- SEO columns in WooCommerce categories list view
 - Open Graph support (title, description, image)
 - XML Sitemap with HTML display (pages, posts, products, categories)
 - Quick Edit support in admin panel

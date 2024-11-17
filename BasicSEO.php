@@ -3,7 +3,7 @@
  * 
  * @package   BasicSEO
  * @author    https://github.com/Torwald45
- * @version   1.8
+* @version   1.8.1
  * @pluginURI https://github.com/Torwald45/basic-seo
  * @changelog @pluginURI https://github.com/Torwald45/basic-seo/CHANGELOG.md
  * Features:

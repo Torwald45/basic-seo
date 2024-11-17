@@ -1,5 +1,15 @@
 # Changelog for Basic SEO
 
+## Version 1.8.1 - November 17, 2024
+**Tested up to**:
+- WordPress: 6.7
+- WooCommerce: 9.4.1
+### Improvements
+- Added Title Tag and Meta Description columns to WooCommerce categories list view
+- Enhanced visibility of SEO fields in product categories management
+### Technical
+- Improved column display structure for product categories
+
 ## Version 1.8 - November 13, 2024
 
 **Tested up to**:
