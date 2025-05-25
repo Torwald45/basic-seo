@@ -1,5 +1,20 @@
 # Changelog for Basic SEO
 
+## Version 1.8.2 - December 4, 2024
+**Tested up to**:
+- WordPress: 6.7
+- WooCommerce: 9.4.1
+
+### Improvements
+- Enhanced sitemap generation with better error handling
+- Added post type and taxonomy validation in sitemap
+- Improved 404 error responses for invalid sitemap requests
+
+### Technical
+- Added post_type_exists() and taxonomy_exists() validation
+- Improved empty data handling in sitemap generation
+- Added proper HTTP status codes for error responses
+
 ## Version 1.8.1 - November 17, 2024
 **Tested up to**:
 - WordPress: 6.7

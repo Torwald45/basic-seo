@@ -3,14 +3,17 @@
  * 
  * @package   BasicSEO
  * @author    https://github.com/Torwald45
-* @version   1.8.1
+ * @version   1.8.2
  * @pluginURI https://github.com/Torwald45/basic-seo
- * @changelog @pluginURI https://github.com/Torwald45/basic-seo/CHANGELOG.md
- * Features:
+ * @changelog https://github.com/Torwald45/basic-seo/blob/main/CHANGELOG.md
+ * @roadmap   https://github.com/Torwald45/basic-seo/blob/main/ROADMAP.md
+* Features:
  * - Custom Title Tag for pages, posts and WooCommerce (shop page & categories)
  * - Meta Description for pages, posts and WooCommerce (shop page & categories)
+ * - SEO columns in admin view for posts, pages, products and WooCommerce categories
  * - Open Graph support (title, description, image)
  * - XML Sitemap with HTML display (pages, posts, products, categories)
+ * - Error handling for XML Sitemap
  * - Quick Edit support in admin panel
  * - Breadcrumbs support via [basicseo-breadcrumb] shortcode
  * - Media attachments redirect (prevents duplicate content)
@@ -143,17 +146,15 @@ function basicseotorvald_v1_add_columns($columns) {
     return $columns;
 }
 
-remove_all_filters('manage_posts_columns');
-remove_all_filters('manage_pages_columns');
-remove_all_filters('manage_product_posts_columns'); 
-
-add_filter('manage_posts_columns', 'basicseotorvald_v1_add_columns');
-add_filter('manage_pages_columns', 'basicseotorvald_v1_add_columns');
-add_filter('manage_product_posts_columns', 'basicseotorvald_v1_add_columns'); 
+add_filter('manage_posts_columns', 'basicseotorvald_v1_add_columns', 20);
+add_filter('manage_pages_columns', 'basicseotorvald_v1_add_columns', 20);
+add_filter('manage_product_posts_columns', 'basicseotorvald_v1_add_columns', 20); 
 
 foreach(basicseotorvald_v1_get_supported_post_types() as $post_type) {
-    add_filter("manage_{$post_type}_posts_columns", 'basicseotorvald_v1_add_columns');
+    add_filter("manage_{$post_type}_posts_columns", 'basicseotorvald_v1_add_columns', 20);
 }
+
+
 
 // Display content in columns
 function basicseotorvald_v1_column_content($column_name, $post_id) {
@@ -312,6 +313,68 @@ add_action('edited_product_cat', 'basicseotorvald_v1_save_product_cat_fields');
 
 /**
  * ==============================================
+ * WOOCOMMERCE CATEGORY COLUMNS
+ * ==============================================
+ */
+
+// Add new columns to the product category list
+function basicseotorvald_v1_add_product_cat_columns($columns) {
+    $new_columns = array();
+    
+    // Preserve checkbox column if exists
+    if (isset($columns['cb'])) {
+        $new_columns['cb'] = $columns['cb'];
+    }
+    
+    // Preserve thumbnail column if exists
+    if (isset($columns['thumb'])) {
+        $new_columns['thumb'] = $columns['thumb'];
+    }
+    
+    // Add name column (required)
+    $new_columns['name'] = $columns['name'];
+    
+    // Add our new SEO columns
+    $new_columns['seo_title'] = 'Title Tag';
+    $new_columns['seo_desc'] = 'Meta Description';
+    
+    // Preserve remaining standard columns
+    if (isset($columns['description'])) {
+        $new_columns['description'] = $columns['description'];
+    }
+    if (isset($columns['slug'])) {
+        $new_columns['slug'] = $columns['slug'];
+    }
+    if (isset($columns['count'])) {
+        $new_columns['count'] = $columns['count'];
+    }
+    
+    return $new_columns;
+}
+add_filter('manage_edit-product_cat_columns', 'basicseotorvald_v1_add_product_cat_columns');
+
+// Display content in the new columns
+function basicseotorvald_v1_product_cat_column_content($content, $column_name, $term_id) {
+    switch ($column_name) {
+        case 'seo_title':
+            $title = get_term_meta($term_id, BSTV1_TERM_TITLE, true);
+            return $title ? esc_html($title) : '—';
+            
+        case 'seo_desc':
+            $desc = get_term_meta($term_id, BSTV1_TERM_DESC, true);
+            return $desc ? esc_html(wp_trim_words($desc, 10, '...')) : '—';
+    }
+    return $content;
+}
+add_filter('manage_product_cat_custom_column', 'basicseotorvald_v1_product_cat_column_content', 10, 3);
+
+/**
+ * END OF WOOCOMMERCE CATEGORY COLUMNS
+ * ==============================================
+ */
+
+/**
+ * ==============================================
  * META TAGS OUTPUT IN HEAD
  * ==============================================
  */
@@ -445,23 +508,32 @@ function basicseotorvald_v1_generate_sitemap_index() {
     $post_types = get_post_types(['public' => true]);
     unset($post_types['attachment']);
     
-    foreach ($post_types as $post_type) {
-        // Check if post type has any posts
-        $count = wp_count_posts($post_type);
-        if ($count->publish > 0) {
-            $url = home_url("/sitemap-post-type-{$post_type}.xml");
-            $output .= "<a href='{$url}'>{$url}</a><br>\n";
+    if (empty($post_types)) {
+        $output .= '<p>No public post types found.</p>';
+    } else {
+        foreach ($post_types as $post_type) {
+            // Check if post type has any posts
+            $count = wp_count_posts($post_type);
+            if ($count && $count->publish > 0) {
+                $url = home_url("/sitemap-post-type-{$post_type}.xml");
+                $output .= "<a href='" . esc_url($url) . "'>" . esc_html($url) . "</a><br>\n";
+            }
         }
     }
     
     // Get all public taxonomies
     $taxonomies = get_taxonomies(['public' => true]);
-    foreach ($taxonomies as $taxonomy) {
-        // Check if taxonomy has any terms
-        $terms = get_terms(['taxonomy' => $taxonomy, 'hide_empty' => true]);
-        if (!empty($terms) && !is_wp_error($terms)) {
-            $url = home_url("/sitemap-taxonomy-{$taxonomy}.xml");
-            $output .= "<a href='{$url}'>{$url}</a><br>\n";
+    
+    if (empty($taxonomies)) {
+        $output .= '<p>No public taxonomies found.</p>';
+    } else {
+        foreach ($taxonomies as $taxonomy) {
+            // Check if taxonomy has any terms
+            $terms = get_terms(['taxonomy' => $taxonomy, 'hide_empty' => true, 'number' => 1]);
+            if (!empty($terms) && !is_wp_error($terms)) {
+                $url = home_url("/sitemap-taxonomy-{$taxonomy}.xml");
+                $output .= "<a href='" . esc_url($url) . "'>" . esc_html($url) . "</a><br>\n";
+            }
         }
     }
     
@@ -471,25 +543,39 @@ function basicseotorvald_v1_generate_sitemap_index() {
 // Generate sitemap for specific post type
 function basicseotorvald_v1_generate_post_type_sitemap($post_type) {
     $output = '<h1>XML Sitemap</h1>';
+    
+    // Verify post type exists
+    if (!post_type_exists($post_type)) {
+        return '<div class="error">Error: Post type does not exist.</div>';
+    }
+    
     $output .= '<table>
         <tr>
             <th>URL</th>
             <th>Last Modified</th>
         </tr>';
     
-    $posts = get_posts([
-        'post_type' => $post_type,
-        'post_status' => 'publish',
-        'posts_per_page' => -1,
-        'orderby' => 'modified',
-        'order' => 'DESC'
-    ]);
-    
-    foreach ($posts as $post) {
-        $output .= '<tr>
-            <td><a href="' . get_permalink($post->ID) . '">' . get_permalink($post->ID) . '</a></td>
-            <td>' . get_the_modified_date('Y-m-d\TH:i:sP', $post->ID) . '</td>
-        </tr>';
+    // no limit posts to 500 to prevent server overload
+$posts = get_posts([
+    'post_type' => $post_type,
+    'post_status' => 'publish',
+    'posts_per_page' => -1,
+    'orderby' => 'modified',
+    'order' => 'DESC'
+]);
+
+    if (empty($posts)) {
+        $output .= '<tr><td colspan="2">No published content found.</td></tr>';
+    } else {
+        foreach ($posts as $post) {
+            $permalink = get_permalink($post->ID);
+            if ($permalink) {
+                $output .= '<tr>
+                    <td><a href="' . esc_url($permalink) . '">' . esc_html($permalink) . '</a></td>
+                    <td>' . get_the_modified_date('Y-m-d\TH:i:sP', $post->ID) . '</td>
+                </tr>';
+            }
+        }
     }
     
     $output .= '</table>';
@@ -503,22 +589,35 @@ function basicseotorvald_v1_generate_post_type_sitemap($post_type) {
 // Generate sitemap for taxonomy
 function basicseotorvald_v1_generate_taxonomy_sitemap($taxonomy) {
     $output = '<h1>XML Sitemap</h1>';
+    
+    // Verify taxonomy exists
+    if (!taxonomy_exists($taxonomy)) {
+        return '<div class="error">Error: Taxonomy does not exist.</div>';
+    }
+    
     $output .= '<table>
         <tr>
             <th>URL</th>
             <th>Last Modified</th>
         </tr>';
     
-    $terms = get_terms([
-        'taxonomy' => $taxonomy,
-        'hide_empty' => true
-    ]);
+$terms = get_terms([
+    'taxonomy' => $taxonomy,
+    'hide_empty' => true
+]);
     
-    foreach ($terms as $term) {
-        $output .= '<tr>
-            <td><a href="' . get_term_link($term) . '">' . get_term_link($term) . '</a></td>
-            <td>' . date('Y-m-d\TH:i:sP') . '</td>
-        </tr>';
+    if (empty($terms) || is_wp_error($terms)) {
+        $output .= '<tr><td colspan="2">No terms found or an error occurred.</td></tr>';
+    } else {
+        foreach ($terms as $term) {
+            $term_link = get_term_link($term);
+            if (!is_wp_error($term_link)) {
+                $output .= '<tr>
+                    <td><a href="' . esc_url($term_link) . '">' . esc_html($term_link) . '</a></td>
+                    <td>' . date('Y-m-d\TH:i:sP') . '</td>
+                </tr>';
+            }
+        }
     }
     
     $output .= '</table>';
@@ -556,6 +655,12 @@ function basicseotorvald_v1_handle_sitemap_request() {
         if (post_type_exists($post_type)) {
             echo basicseotorvald_v1_generate_post_type_sitemap($post_type);
             exit;
+        } else {
+            status_header(404);
+            echo '<h1>Error 404: Sitemap not found</h1>';
+            echo '<p>The requested post type does not exist.</p>';
+            echo '<p><a href="' . home_url('/sitemap.xml') . '">Back to main sitemap</a></p>';
+            exit;
         }
     }
     
@@ -565,9 +670,25 @@ function basicseotorvald_v1_handle_sitemap_request() {
         if (taxonomy_exists($taxonomy)) {
             echo basicseotorvald_v1_generate_taxonomy_sitemap($taxonomy);
             exit;
+        } else {
+            status_header(404);
+            echo '<h1>Error 404: Sitemap not found</h1>';
+            echo '<p>The requested taxonomy does not exist.</p>';
+            echo '<p><a href="' . home_url('/sitemap.xml') . '">Back to main sitemap</a></p>';
+            exit;
         }
     }
+    
+    // If we got here, the sitemap URL pattern was invalid
+    if (strpos($current_url, 'sitemap') !== false && strpos($current_url, '.xml') !== false) {
+        status_header(404);
+        echo '<h1>Error 404: Sitemap not found</h1>';
+        echo '<p>Invalid sitemap URL format.</p>';
+        echo '<p><a href="' . home_url('/sitemap.xml') . '">Back to main sitemap</a></p>';
+        exit;
+    }
 }
+
 add_action('init', 'basicseotorvald_v1_handle_sitemap_request');
 
 /**
